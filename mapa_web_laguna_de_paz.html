@@ -24,7 +24,7 @@
     </style>
 </head>
 <body>
-    <h2>Mapa Avanzado - Laguna de Paz S.A</h2>
+    <h2>Mapa Web - Laguna de Paz S.A</h2>
     <div id="filter">
         <label>Filtrar por distrito:</label>
         <select id="distritoSelect">
@@ -137,10 +137,12 @@
                 L.geoJSON(data, {
                     style: function (feature) {
                         const estado = feature.properties?.estado || "";
-                        let color = "blue";
-                        if (estado === "Ocupado") color = "red";
-                        else if (estado === "Libre") color = "green";
-                        else if (estado === "En litigio") color = "orange";
+                        let color = "yellow";
+                        if (estado === "A revisar") color = "red";
+                        else if (estado === "En seguimiento") color = "orange";
+                        else if (estado === "A lotear") color = "green";
+                        else if (estado === "Cotejar") color = "yellow";
+                        else if (estado === " ") color = "gray";
                         return { color: color, weight: 2, fillOpacity: 0.2 };
                     },
                     onEachFeature: function (feature, layer) {
