@@ -1,0 +1,155 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Mapa Avanzado - Laguna de Paz S.A</title>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
+    <style>
+        #map {
+            height: 90vh;
+            width: 100%;
+        }
+        #filter {
+            position: absolute;
+            top: 10px;
+            left: 50px;
+            z-index: 1000;
+            background: white;
+            padding: 6px 10px;
+            border-radius: 4px;
+            box-shadow: 0 1px 5px rgba(0,0,0,0.65);
+            font-family: Arial;
+        }
+    </style>
+</head>
+<body>
+    <h2>Mapa Avanzado - Laguna de Paz S.A</h2>
+    <div id="filter">
+        <label>Filtrar por distrito:</label>
+        <select id="distritoSelect">
+            <option value="todos">Todos</option>
+        </select>
+    </div>
+    <div id="map"></div>
+
+    <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
+    <script>
+        const map = L.map("map").setView([-25.3, -57.5], 8);
+
+        // Capas base
+        const calle = L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+            attribution: "© OpenStreetMap contributors"
+        });
+
+        const satelite = L.tileLayer("https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}", {
+            attribution: "Tiles © Esri"
+        });
+
+        calle.addTo(map);
+
+        const baseMaps = {
+            "Calle": calle,
+            "Satelital": satelite
+        };
+
+        L.control.layers(baseMaps).addTo(map);
+
+        const sheetURL = 'https://docs.google.com/spreadsheets/d/1PQny-jKuVqFBF_YCda029BX3S90QpKTesXMpNM7t9UA/gviz/tq?tqx=out:json';
+        let markersLayer = L.layerGroup().addTo(map);
+        let distritosSet = new Set();
+
+        // Cargar marcadores
+        fetch(sheetURL)
+            .then(res => res.text())
+            .then(rep => {
+                const json = JSON.parse(rep.substr(47).slice(0, -2));
+                const rows = json.table.rows;
+
+                rows.forEach(row => {
+                    const get = (i) => row.c[i]?.v || "";
+                    const lat = parseFloat(get(10));
+                    const lon = parseFloat(get(11));
+                    const distrito = get(3);
+
+                    if (!isNaN(lat) && !isNaN(lon)) {
+                        const popup = `
+                            <b>Padrón:</b> ${get(0)}<br>
+                            <b>Finca:</b> ${get(1)}<br>
+                            <b>Superficie:</b> ${get(2)} ha<br>
+                            <b>Distrito:</b> ${distrito}<br>
+                            <b>Departamento:</b> ${get(4)}<br>
+                            <b>Propietario:</b> ${get(5)}<br>
+                            <b>Encargado:</b> ${get(6)}<br>
+                            <b>Lugar:</b> ${get(7)}<br>
+                            <b>Fuente:</b> ${get(8)}<br>
+                            <b>Estado actual:</b> ${get(13)}<br>
+                            <b>Observación:</b> ${get(14)}
+                        `;
+                        const marker = L.marker([lat, lon]).bindPopup(popup);
+                        marker.options.distrito = distrito;
+                        markersLayer.addLayer(marker);
+                        distritosSet.add(distrito);
+                    }
+                });
+
+                const select = document.getElementById("distritoSelect");
+                Array.from(distritosSet).sort().forEach(dist => {
+                    const option = document.createElement("option");
+                    option.value = dist;
+                    option.textContent = dist;
+                    select.appendChild(option);
+                });
+
+                select.addEventListener("change", () => {
+                    const value = select.value;
+                    markersLayer.clearLayers();
+                    rows.forEach(row => {
+                        const get = (i) => row.c[i]?.v || "";
+                        const lat = parseFloat(get(10));
+                        const lon = parseFloat(get(11));
+                        const distrito = get(3);
+                        if (!isNaN(lat) && !isNaN(lon) && (value === "todos" || distrito === value)) {
+                            const popup = `
+                                <b>Padrón:</b> ${get(0)}<br>
+                                <b>Finca:</b> ${get(1)}<br>
+                                <b>Superficie:</b> ${get(2)} ha<br>
+                                <b>Distrito:</b> ${distrito}<br>
+                                <b>Departamento:</b> ${get(4)}<br>
+                                <b>Propietario:</b> ${get(5)}<br>
+                                <b>Encargado:</b> ${get(6)}<br>
+                                <b>Lugar:</b> ${get(7)}<br>
+                                <b>Fuente:</b> ${get(8)}<br>
+                                <b>Estado actual:</b> ${get(13)}<br>
+                                <b>Observación:</b> ${get(14)}
+                            `;
+                            const marker = L.marker([lat, lon]).bindPopup(popup);
+                            markersLayer.addLayer(marker);
+                        }
+                    });
+                });
+            });
+
+        // Polígonos desde archivo GeoJSON
+        fetch("LDP_limites_rurales.json")
+            .then(response => response.json())
+            .then(data => {
+                L.geoJSON(data, {
+                    style: function (feature) {
+                        const estado = feature.properties?.estado || "";
+                        let color = "blue";
+                        if (estado === "Ocupado") color = "red";
+                        else if (estado === "Libre") color = "green";
+                        else if (estado === "En litigio") color = "orange";
+                        return { color: color, weight: 2, fillOpacity: 0.2 };
+                    },
+                    onEachFeature: function (feature, layer) {
+                        if (feature.properties?.nombre) {
+                            layer.bindPopup(`<b>${feature.properties.nombre}</b><br><b>Estado:</b> ${feature.properties.estado || "Desconocido"}`);
+                        }
+                    }
+                }).addTo(map);
+            });
+    </script>
+</body>
+</html>
