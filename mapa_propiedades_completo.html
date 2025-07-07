@@ -74,7 +74,7 @@ fetch("propiedades.geojson")
         fillOpacity: 0.2
       },
       onEachFeature: function (feature, layer) {
-        if (feature.properties && feature.properties.nombre) {
+        if (feature.properties && feature.properties.name) {
           layer.bindPopup(`<b>${feature.properties.nombre}</b>`);
         }
       }
