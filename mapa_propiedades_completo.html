@@ -64,3 +64,19 @@
     </script>
 </body>
 </html>
+fetch("propiedades.geojson")
+  .then(response => response.json())
+  .then(data => {
+    L.geoJSON(data, {
+      style: {
+        color: "blue",
+        weight: 2,
+        fillOpacity: 0.2
+      },
+      onEachFeature: function (feature, layer) {
+        if (feature.properties && feature.properties.nombre) {
+          layer.bindPopup(`<b>${feature.properties.nombre}</b>`);
+        }
+      }
+    }).addTo(map);
+  });
