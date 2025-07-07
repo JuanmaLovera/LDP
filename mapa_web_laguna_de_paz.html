@@ -139,10 +139,10 @@
                         const estado = feature.properties?.estado || "";
                         let color = "yellow";
                         if (estado === "A revisar") color = "red";
-                        else if (Estado actual:=== "En seguimiento") color = "orange";
-                        else if (Estado actual:=== "A lotear") color = "green";
-                        else if (Estado actual:=== "Cotejar") color = "yellow";
-                        else if (Estado actual:=== " ") color = "gray";
+                        else if (Estado actual: === "En seguimiento") color = "orange";
+                        else if (Estado actual: === "A lotear") color = "green";
+                        else if (Estado actual: === "Cotejar") color = "yellow";
+                        else if (Estado actual: === " ") color = "gray";
                         return { color: color, weight: 2, fillOpacity: 0.2 };
                     },
                     onEachFeature: function (feature, layer) {
