@@ -4,10 +4,7 @@
     <title>Mapa de Propiedades completo</title>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <link
-      rel="stylesheet"
-      href="https://unpkg.com/leaflet/dist/leaflet.css"
-    />
+    <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
     <style>
         #map {
             height: 90vh;
@@ -31,6 +28,7 @@
 
         const sheetURL = 'https://docs.google.com/spreadsheets/d/1PQny-jKuVqFBF_YCda029BX3S90QpKTesXMpNM7t9UA/gviz/tq?tqx=out:json';
 
+        // 🔹 Marcadores de puntos desde Google Sheets
         fetch(sheetURL)
             .then(res => res.text())
             .then(rep => {
@@ -49,34 +47,4 @@
                             <b>Superficie:</b> ${get(2)} ha<br>
                             <b>Distrito:</b> ${get(3)}<br>
                             <b>Departamento:</b> ${get(4)}<br>
-                            <b>Propietario:</b> ${get(5)}<br>
-                            <b>Encargado:</b> ${get(6)}<br>
-                            <b>Lugar:</b> ${get(7)}<br>
-                            <b>Fuente:</b> ${get(8)}<br>
-                            <b>Estado actual:</b> ${get(13)}<br>
-                            <b>Observación:</b> ${get(14)}
-                        `;
-                        L.marker([lat, lon]).addTo(map).bindPopup(popup);
-                    }
-                });
-            })
-            .catch(err => console.error("Error al cargar datos de Google Sheets", err));
-    </script>
-</body>
-</html>
-fetch("LDP_limites_rurales.json")
-  .then(response => response.json())
-  .then(data => {
-    L.geoJSON(data, {
-      style: {
-        color: "blue",
-        weight: 2,
-        fillOpacity: 0.2
-      },
-      onEachFeature: function (feature, layer) {
-        if (feature.properties && feature.properties.name) {
-          layer.bindPopup(`<b>${feature.properties.nombre}</b>`);
-        }
-      }
-    }).addTo(map);
-  });
+
