@@ -64,7 +64,7 @@
     </script>
 </body>
 </html>
-fetch("propiedades.geojson")
+fetch("LDP_limites_rurales.geojson")
   .then(response => response.json())
   .then(data => {
     L.geoJSON(data, {
