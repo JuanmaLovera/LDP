@@ -1,0 +1,228 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Mapa Web - Laguna de Paz S.A</title>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        #map {
+            height: 90vh;
+            width: 100%;
+        }
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+        }
+        #filter {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            z-index: 1000;
+            background: white;
+            padding: 10px;
+            border-radius: 8px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.3);
+            width: 250px;
+        }
+        #filter label, #filter select, #filter input {
+            display: block;
+            margin-bottom: 8px;
+            width: 100%;
+        }
+        h2 {
+            padding: 20px;
+        }
+        #dashboard {
+            width: 90%;
+            max-width: 800px;
+            margin: 20px auto;
+        }
+    </style>
+</head>
+<body>
+    <h2>Mapa Web - Laguna de Paz S.A</h2>
+    <div id="filter">
+        <label>Buscar por padrón o cuenta corriente:</label>
+        <input type="text" id="padronInput" placeholder="Ej: 138">
+
+        <label>Filtrar por distrito:</label>
+        <select id="distritoSelect">
+            <option value="">Todos</option>
+        </select>
+
+        <label>Filtrar por departamento:</label>
+        <select id="departamentoSelect">
+            <option value="">Todos</option>
+        </select>
+
+        <label>Filtrar por propietario:</label>
+        <select id="propietarioSelect">
+            <option value="">Todos</option>
+        </select>
+
+        <label>Filtrar por estado actual:</label>
+        <select id="estadoSelect">
+            <option value="">Todos</option>
+        </select>
+    </div>
+
+    <div id="map"></div>
+    <div id="dashboard">
+        <canvas id="graficoDistritos"></canvas>
+    </div>
+
+    <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
+    <script>
+        const map = L.map("map").setView([-25.3, -57.5], 8);
+
+        const calle = L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+            attribution: "© OpenStreetMap contributors"
+        });
+
+        const satelite = L.tileLayer("https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}", {
+            attribution: "Tiles © Esri"
+        });
+
+        calle.addTo(map);
+        const baseMaps = {"Calle": calle, "Satelital": satelite};
+        L.control.layers(baseMaps).addTo(map);
+
+        const sheetURL = 'https://docs.google.com/spreadsheets/d/1PQny-jKuVqFBF_YCda029BX3S90QpKTesXMpNM7t9UA/gviz/tq?tqx=out:json';
+        let markersLayer = L.layerGroup().addTo(map);
+        let allRows = [], chart;
+
+        const ctx = document.getElementById("graficoDistritos").getContext("2d");
+
+        const selects = {
+            distrito: document.getElementById("distritoSelect"),
+            departamento: document.getElementById("departamentoSelect"),
+            propietario: document.getElementById("propietarioSelect"),
+            estado: document.getElementById("estadoSelect")
+        };
+
+        const padronInput = document.getElementById("padronInput");
+
+        function actualizarGrafico(datos) {
+            const conteo = {};
+            datos.forEach(row => {
+                const get = (i) => row.c[i]?.v || "";
+                const distrito = get(3);
+                if (distrito) conteo[distrito] = (conteo[distrito] || 0) + 1;
+            });
+            const labels = Object.keys(conteo).sort();
+            const values = labels.map(label => conteo[label]);
+            if (chart) chart.destroy();
+            chart = new Chart(ctx, {
+                type: 'bar',
+                data: { labels, datasets: [{ label: 'Propiedades por distrito', data: values, backgroundColor: 'rgba(0, 128, 0, 0.7)' }] },
+                options: {
+                    plugins: { title: { display: true, text: `Total de propiedades: ${datos.length}`, font: { size: 18 } }, legend: { display: false } },
+                    scales: { x: { ticks: { autoSkip: false, maxRotation: 45, minRotation: 45 } }, y: { beginAtZero: true } }
+                }
+            });
+        }
+
+        function poblarSelect(set, select) {
+            Array.from(set).sort().forEach(val => {
+                const opt = document.createElement("option");
+                opt.value = val;
+                opt.textContent = val;
+                select.appendChild(opt);
+            });
+        }
+
+        function filtrarYActualizar() {
+            const padronVal = padronInput.value.toLowerCase();
+            const filtros = {
+                distrito: selects.distrito.value,
+                departamento: selects.departamento.value,
+                propietario: selects.propietario.value,
+                estado: selects.estado.value
+            };
+            markersLayer.clearLayers();
+            const bounds = [];
+            const filtrados = allRows.filter(row => {
+                const get = (i) => row.c[i]?.v?.toString().toLowerCase() || "";
+                const coincidePadron = padronVal === "" || get(0).includes(padronVal) || get(1).includes(padronVal);
+                const coincideDistrito = !filtros.distrito || get(3) === filtros.distrito.toLowerCase();
+                const coincideDepto = !filtros.departamento || get(4) === filtros.departamento.toLowerCase();
+                const coincideProp = !filtros.propietario || get(5) === filtros.propietario.toLowerCase();
+                const coincideEstado = !filtros.estado || get(13) === filtros.estado.toLowerCase();
+                return coincidePadron && coincideDistrito && coincideDepto && coincideProp && coincideEstado;
+            });
+
+            filtrados.forEach(row => {
+                const get = (i) => row.c[i]?.v || "";
+                const lat = parseFloat(get(10));
+                const lon = parseFloat(get(11));
+                if (!isNaN(lat) && !isNaN(lon)) {
+                    const popup = `
+                        <b>Padrón:</b> ${get(0)}<br>
+                        <b>Finca:</b> ${get(1)}<br>
+                        <b>Superficie:</b> ${get(2)} ha<br>
+                        <b>Distrito:</b> ${get(3)}<br>
+                        <b>Departamento:</b> ${get(4)}<br>
+                        <b>Propietario:</b> ${get(5)}<br>
+                        <b>Encargado:</b> ${get(6)}<br>
+                        <b>Lugar:</b> ${get(7)}<br>
+                        <b>Fuente:</b> ${get(8)}<br>
+                        <b>Estado actual:</b> ${get(13)}<br>
+                        <b>Observación:</b> ${get(14)}
+                    `;
+                    const marker = L.marker([lat, lon]).bindPopup(popup);
+                    markersLayer.addLayer(marker);
+                    bounds.push([lat, lon]);
+                }
+            });
+            if (bounds.length) map.fitBounds(bounds);
+            actualizarGrafico(filtrados);
+        }
+
+        fetch(sheetURL)
+            .then(res => res.text())
+            .then(rep => {
+                const json = JSON.parse(rep.substr(47).slice(0, -2));
+                allRows = json.table.rows;
+
+                const sets = { distrito: new Set(), departamento: new Set(), propietario: new Set(), estado: new Set() };
+
+                allRows.forEach(row => {
+                    const get = (i) => row.c[i]?.v?.toString() || "";
+                    sets.distrito.add(get(3));
+                    sets.departamento.add(get(4));
+                    sets.propietario.add(get(5));
+                    sets.estado.add(get(13));
+                });
+
+                poblarSelect(sets.distrito, selects.distrito);
+                poblarSelect(sets.departamento, selects.departamento);
+                poblarSelect(sets.propietario, selects.propietario);
+                poblarSelect(sets.estado, selects.estado);
+
+                padronInput.addEventListener("input", filtrarYActualizar);
+                selects.distrito.addEventListener("change", filtrarYActualizar);
+                selects.departamento.addEventListener("change", filtrarYActualizar);
+                selects.propietario.addEventListener("change", filtrarYActualizar);
+                selects.estado.addEventListener("change", filtrarYActualizar);
+
+                filtrarYActualizar();
+            });
+
+        fetch("LDP_limites_rurales.json")
+            .then(response => response.json())
+            .then(data => {
+                L.geoJSON(data, {
+                    style: () => ({ color: "yellow", weight: 2, fillOpacity: 0.2 }),
+                    onEachFeature: (feature, layer) => {
+                        if (feature.properties?.nombre) {
+                            layer.bindPopup(`<b>${feature.properties.nombre}</b><br><b>Estado:</b> ${feature.properties.estado || "Desconocido"}`);
+                        }
+                    }
+                }).addTo(map);
+            });
+    </script>
+</body>
+</html>
