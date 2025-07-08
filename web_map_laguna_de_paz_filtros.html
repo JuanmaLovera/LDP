@@ -172,7 +172,9 @@
                         <b>Estado actual:</b> ${get(13)}<br>
                         <b>Observación:</b> ${get(14)}
                     `;
-                    const marker = L.marker([lat, lon]).bindPopup(popup);
+                    const marker = L.marker([lat, lon])
+                            .bindPopup(popup)
+                            .bindTooltip(get(0), { permanent: true, direction: 'top', className: 'tooltip-padron' });
                     markersLayer.addLayer(marker);
                     bounds.push([lat, lon]);
                 }
